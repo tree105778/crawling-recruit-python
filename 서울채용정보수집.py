@@ -124,7 +124,7 @@ def get_recruit_info_by_page(pagenum, session = None):
             "work_type": career_text[1].strip() if len(career_text) > 1 else None,
             "education": education_text,
             "recruit_date": recruit_date,
-            "link": f"링크: https://www.saramin.co.kr{link}"
+            "link": f"https://www.saramin.co.kr{link}"
         }
         page_data.append(data)
 
