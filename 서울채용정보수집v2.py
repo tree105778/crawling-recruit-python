@@ -1,16 +1,16 @@
 import logging
 import re
-import time
-
 import requests
 import os
-from concurrent.futures.thread import ThreadPoolExecutor
+import time
 from concurrent.futures import as_completed
+from concurrent.futures.thread import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from math import ceil
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from supabase import create_client
+
 load_dotenv()
 
 url = os.environ.get("SUPABASE_URL")
@@ -20,7 +20,7 @@ supabase = create_client(url, key)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    filename='scraping.log'
+    filename=f'scraping.log - {datetime.now().strftime("%Y%m%d%H%M")}'
 )
 
 def parse_recruit_date(date_str):
@@ -82,11 +82,7 @@ def insert_with_retry(data, retries=3):
             break
         except Exception as e:
             logging.error(f"Error inserting data: {e}, attempt {attempt + 1}")
-            if attempt < retries - 1:
-                sleep_time = attempt
-                logging.info(f"Retrying in {sleep_time} seconds...")
-                time.sleep(sleep_time)
-            else:
+            if attempt == retries - 1:
                 logging.error("Max retries reached. Skipping this batch.")
 
 
@@ -138,13 +134,7 @@ def get_recruit_info_by_page(pagenum, session = None):
             "recruit_date": recruit_date,
             "link": f"https://www.saramin.co.kr{link}"
         }
-        response = (supabase.table("seoul_recruit_info").select("company_name, job_info")
-                    .eq("company_name", corp_text).eq("job_info", info_text).execute())
-        if response.data:
-            logging.info(f"{data} already existed")
-            continue
-        else:
-            page_data.append(data)
+        page_data.append(data)
 
     if page_data:
         insert_with_retry(page_data)
@@ -164,8 +154,8 @@ total_page = fetch_total_page(50)
 # all_data = []
 with requests.Session() as session:
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(get_recruit_info_by_page, pagenum, session) for pagenum in range(1, total_page + 1)]
+        futures = {executor.submit(get_recruit_info_by_page, pagenum, session):
+                       pagenum for pagenum in range(1, total_page + 1)}
 
         for future in as_completed(futures):
             pass
-
